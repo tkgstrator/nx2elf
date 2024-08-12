@@ -1,0 +1,29 @@
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Change source
+        run: sed -i.org -e "s|ports.ubuntu.com|free.nchc.org.tw|g" /etc/apt/sources.list
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y make g++
+      - name: Check version
+        run: |
+          make --version
+          g++ --version
+      - name: Build
+        run: make
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}-build
+          path: nx2elf
