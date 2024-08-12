@@ -10,8 +10,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Change source
-        run: sed -i.org -e "s|ports.ubuntu.com|free.nchc.org.tw|g" /etc/apt/sources.list
       - name: Install dependencies
         run: |
           apt-get update
