@@ -98,4 +98,3 @@ Update the README to describe CMake builds, supported NSO/NRO/MOD inputs, the fi
 - After cutover, verify the remote default branch and exact `master` SHA, then manually dispatch and require a successful five-target workflow run on that ref.
 - Create `v0.2.0`, wait for the tag workflow, and verify all five downloadable archives plus `SHA256SUMS`, nonzero sizes, archive contents, and checksums. If GitHub's REST ref creation does not emit the `push` workflow, manually dispatch the same workflow at the immutable `v0.2.0` ref exactly once.
 - Compare the release tag target with the tested `master` commit.
-

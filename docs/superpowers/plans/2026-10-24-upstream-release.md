@@ -175,4 +175,3 @@ Confirm the release is public and non-draft, the tag target equals `master`, all
 Verify default branch, branches, tags, releases, workflow state, commit identities/messages, no unexpected repository changes, and no uncommitted local files.
 
 Expected: every acceptance criterion from the design is satisfied.
-
