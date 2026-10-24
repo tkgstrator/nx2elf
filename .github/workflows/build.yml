@@ -1,21 +1,39 @@
 name: build
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  cmake:
-    # Skip building pull requests from the same repository
-    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
-    runs-on: ${{ matrix.os }}
+  build:
+    # A branch push already covers pull requests opened from this repository.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    name: build (${{ matrix.package }})
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-latest, windows-2022]
+        include:
+          - runner: ubuntu-24.04
+            package: nx2elf-Linux-x86_64
+          - runner: ubuntu-24.04-arm
+            package: nx2elf-Linux-arm64
+          - runner: macos-15-intel
+            package: nx2elf-macOS-x86_64
+          - runner: macos-15
+            package: nx2elf-macOS-arm64
+          - runner: windows-2025
+            package: nx2elf-Windows-x86_64
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCPACK_PACKAGE_FILE_NAME=${{ matrix.package }}
 
       - name: Build
         run: cmake --build build --config Release
@@ -23,14 +41,59 @@ jobs:
       - name: Package
         run: cmake --build build --config Release --target package
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: nx2elf-${{ matrix.os }}
-          path: build/nx2elf-*.zip
+      - name: Verify package
+        shell: bash
+        run: test -s "build/${{ matrix.package }}.zip"
 
-      - name: Upload release asset
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          files: build/nx2elf-*.zip
+          name: ${{ matrix.package }}
+          path: build/${{ matrix.package }}.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: nx2elf-*
+          path: dist
+          merge-multiple: true
+
+      - name: Verify release files and create checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=(
+            "nx2elf-Linux-x86_64.zip"
+            "nx2elf-Linux-arm64.zip"
+            "nx2elf-macOS-x86_64.zip"
+            "nx2elf-macOS-arm64.zip"
+            "nx2elf-Windows-x86_64.zip"
+          )
+          mapfile -t actual < <(find dist -maxdepth 1 -type f -name 'nx2elf-*.zip')
+          test "${#actual[@]}" -eq "${#expected[@]}"
+          for archive in "${expected[@]}"; do
+            test -s "dist/${archive}"
+          done
+          (
+            cd dist
+            sha256sum "${expected[@]}" > SHA256SUMS
+            test -s SHA256SUMS
+          )
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        with:
+          files: |
+            dist/*.zip
+            dist/SHA256SUMS
+          fail_on_unmatched_files: true
+          generate_release_notes: true
