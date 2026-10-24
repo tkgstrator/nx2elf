@@ -20,14 +20,18 @@ On Linux:
 
 ```sh
 archive=nx2elf-Linux-x86_64.zip
-grep -F "  $archive" SHA256SUMS | sha256sum -c -
+grep -F "  $archive" SHA256SUMS > "$archive.sha256" &&
+  test "$(wc -l < "$archive.sha256")" -eq 1 &&
+  sha256sum -c "$archive.sha256"
 ```
 
 On macOS:
 
 ```sh
 archive=nx2elf-macOS-arm64.zip
-grep -F "  $archive" SHA256SUMS | shasum -a 256 -c -
+grep -F "  $archive" SHA256SUMS > "$archive.sha256" &&
+  test "$(wc -l < "$archive.sha256")" -eq 1 &&
+  shasum -a 256 -c "$archive.sha256"
 ```
 
 On Windows PowerShell:
