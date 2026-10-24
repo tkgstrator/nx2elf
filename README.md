@@ -50,6 +50,40 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
+### Building Linux packages with Docker
+
+Docker can build a Linux release package without installing CMake or a compiler on the host. Run the following from the repository root in a POSIX-compatible shell:
+
+```sh
+platform=linux/amd64
+package=nx2elf-Linux-x86_64
+
+mkdir -p build-docker
+docker run --rm \
+  --platform "$platform" \
+  --env PACKAGE="$package" \
+  --mount type=bind,src="$(pwd)",dst=/src,readonly \
+  --mount type=bind,src="$(pwd)/build-docker",dst=/out \
+  alpine:3.22 sh -lc '
+    set -eu
+    apk add --no-cache build-base cmake zip
+    cmake -S /src -B /tmp/build \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCPACK_PACKAGE_FILE_NAME="$PACKAGE"
+    cmake --build /tmp/build --config Release --target package
+    cp "/tmp/build/$PACKAGE.zip" /out/
+  '
+```
+
+The archive is written to `build-docker/nx2elf-Linux-x86_64.zip`. To build the Linux arm64 package instead, use:
+
+```sh
+platform=linux/arm64
+package=nx2elf-Linux-arm64
+```
+
+The selected platform must be supported by the Docker installation. Building for a different CPU architecture may use emulation and take longer. These commands create Linux binaries only; use the native CMake commands or the GitHub Actions workflow for macOS and Windows packages.
+
 ## Usage
 
 ```text
